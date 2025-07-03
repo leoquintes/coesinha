@@ -96,14 +96,14 @@ async function handleIncomingMessageWithAI(incomingMsg) {
         let replyMessage = `*Previsões para o ponto: ${foundStop.name}*\n\n`;
 
         if (arrivalsRio.length > 0) {
-            replyMessage += `*Próximos autocarros para o Rio de Janeiro:*\n`;
+            replyMessage += `*Próximos ônibus para o Rio de Janeiro:*\n`;
             arrivalsRio.forEach(bus => {
                 const formattedTime = bus.arrivalTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                 replyMessage += `- Chega em *${bus.minutesAway} min* (às ${formattedTime})\n`;
             });
         }
         if (arrivalsSG.length > 0) {
-            replyMessage += `\n*Próximos autocarros para São Gonçalo:*\n`;
+            replyMessage += `\n*Próximos ônibus para São Gonçalo:*\n`;
             arrivalsSG.forEach(bus => {
                 const formattedTime = bus.arrivalTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                 replyMessage += `- Chega em *${bus.minutesAway} min* (às ${formattedTime})\n`;
