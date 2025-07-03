@@ -7,9 +7,6 @@ const twilio = require('twilio');
 const app = express();
 app.use(express.urlencoded({ extended: false }));
 
-// Objeto para guardar o estado da conversa de cada utilizador
-const userStates = {};
-
 // --- DADOS E LÓGICA DE HORÁRIOS ---
 const allStops = [
     { id: "142254614", name: "Trindade", lat: -22.807783, lon: -43.016872 },
@@ -79,178 +76,103 @@ function calculateBusArrivalsForStop(stop, destination) { const line = destinati
 
 // --- LÓGICA PRINCIPAL DO BOT ---
 
+const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+
 app.post('/whatsapp', async (req, res) => {
-    const twiml = new twilio.twiml.MessagingResponse();
     const incomingMsg = req.body.Body.toLowerCase().trim();
     const from = req.body.From;
-
-    // NOVO: Verifica se a mensagem contém dados de localização
-    if (req.body.Latitude && req.body.Longitude) {
-        const { Latitude, Longitude } = req.body;
-        
-        let replyMessage = '';
-        const findStop = (id) => allStops.find(s => s.id === id);
-        
-        let closestStop = null;
-        let minDistance = Infinity;
-
-        allStops.forEach(stop => {
-            const distance = calculateDistance(Latitude, Longitude, stop.lat, stop.lon);
-            if (distance < minDistance) {
-                minDistance = distance;
-                closestStop = stop;
-            }
-        });
-
-        if (closestStop && minDistance < 2) { // Limite de 2km
-            const arrivalsRio = calculateBusArrivalsForStop(closestStop, 'Rio de Janeiro');
-            const arrivalsSG = calculateBusArrivalsForStop(closestStop, 'São Gonçalo');
-
-            replyMessage = `A paragem mais próxima é *${closestStop.name}*.\n\n`;
-
-            if (arrivalsRio.length > 0) {
-                replyMessage += `*Próximos para o Rio de Janeiro:*\n`;
-                arrivalsRio.forEach(bus => {
-                    const formattedTime = bus.arrivalTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                    replyMessage += `- Em *${bus.minutesAway} min* (às ${formattedTime})\n`;
-                });
-            }
-             if (arrivalsSG.length > 0) {
-                replyMessage += `\n*Próximos para São Gonçalo:*\n`;
-                arrivalsSG.forEach(bus => {
-                    const formattedTime = bus.arrivalTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                    replyMessage += `- Em *${bus.minutesAway} min* (às ${formattedTime})\n`;
-                });
-            }
-             if (arrivalsRio.length === 0 && arrivalsSG.length === 0) {
-                replyMessage += `_Nenhum autocarro previsto para esta paragem nas próximas horas._`;
-            }
-        } else {
-            replyMessage = "Não consegui encontrar uma paragem a menos de 2km da sua localização.";
-        }
-        
-        twiml.message(replyMessage);
-        delete userStates[from]; // Reinicia a conversa
-        res.writeHead(200, {'Content-Type': 'text/xml'});
-        return res.end(twiml.toString());
-    }
-
+    
+    // O ID da seleção da lista vem num campo diferente
+    const selectionId = req.body.ListPicker || null;
     let state = userStates[from] || { step: 'start' };
+
+    let replyMessage = '';
 
     if (incomingMsg === 'menu' || incomingMsg === 'início' || incomingMsg === 'inicio') {
         state = { step: 'start' };
     }
-
-    let replyMessage = '';
-
-    switch (state.step) {
-        case 'start':
-            replyMessage = 'Olá! Bem-vindo ao assistente da Coesa. Como posso ajudar?\n\n*1.* Ver lista de paragens\n*2.* Enviar a minha localização';
-            state.step = 'awaiting_initial_choice';
-            break;
-
-        case 'awaiting_initial_choice':
-            if (incomingMsg === '1') {
-                replyMessage = 'Para qual destino deseja ver as paragens?\n*1.* Rio de Janeiro\n*2.* São Gonçalo';
-                state.step = 'awaiting_destination_for_list';
-            } else if (incomingMsg === '2') {
-                replyMessage = 'Por favor, use a função do WhatsApp para partilhar a sua localização atual.';
-                state.step = 'awaiting_location'; // Estado passivo, apenas espera pela localização
-            } else {
-                replyMessage = 'Opção inválida. Por favor, responda com *1* ou *2*.';
-            }
-            break;
-        
-        case 'awaiting_location':
-             replyMessage = 'Ainda estou a aguardar que partilhe a sua localização. Se mudou de ideias, digite "menu" para recomeçar.';
-             break;
-
-        case 'awaiting_destination_for_list':
-            const line = incomingMsg === '1' ? companyBusData.lines.ida : (incomingMsg === '2' ? companyBusData.lines.volta : null);
-            if (line) {
-                state.destination = line.destination;
-                const stopsForRoute = allStops.filter(s => line.path.includes(s.id));
-                
-                // Paginação
-                const pageSize = 10;
-                state.paginatedStops = [];
-                for (let i = 0; i < stopsForRoute.length; i += pageSize) {
-                    state.paginatedStops.push(stopsForRoute.slice(i, i + pageSize));
-                }
-                state.currentPage = 0;
-
-                replyMessage = `Estas são as primeiras paragens para *${state.destination}*:\n\n`;
-                state.paginatedStops[0].forEach((stop, index) => {
-                    replyMessage += `*${index + 1}.* ${stop.name}\n`;
+    
+    // Se o utilizador enviou a localização
+    if (req.body.Latitude && req.body.Longitude) {
+        // ... (código para lidar com a localização, que pode ser adicionado aqui)
+        replyMessage = "Obrigado por enviar a sua localização! Esta funcionalidade será implementada em breve.";
+        delete userStates[from];
+    }
+    // Se o utilizador escolheu um item da lista de paragens
+    else if (state.step === 'awaiting_stop_choice' && selectionId) {
+        const selectedStop = allStops.find(s => s.id === selectionId);
+        if (selectedStop) {
+            const arrivals = calculateBusArrivalsForStop(selectedStop, state.destination);
+             if (arrivals.length > 0) {
+                replyMessage = `*Próximos autocarros para ${selectedStop.name}:*\n\n`;
+                arrivals.forEach(bus => {
+                    const formattedTime = bus.arrivalTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                    replyMessage += `- Chega em *${bus.minutesAway} min* (às ${formattedTime})\n`;
                 });
-                if (state.paginatedStops.length > 1) {
-                    replyMessage += `\nResponda com o *número* da paragem ou digite *"mais"* para ver as próximas.`;
-                } else {
-                    replyMessage += `\nResponda com o *número* da paragem.`;
-                }
-                state.step = 'awaiting_stop_from_list';
             } else {
-                replyMessage = 'Opção inválida. Por favor, responda com *1* para Rio de Janeiro ou *2* para São Gonçalo.';
+                replyMessage = `Não há autocarros programados para a paragem *${selectedStop.name}* nas próximas horas.`;
             }
-            break;
-
-        case 'awaiting_stop_from_list':
-            if (incomingMsg === 'mais') {
-                state.currentPage++;
-                if (state.currentPage < state.paginatedStops.length) {
-                    const pageStops = state.paginatedStops[state.currentPage];
-                    const startNumber = state.currentPage * 10 + 1;
-                    replyMessage = `Continuando a lista de paragens para *${state.destination}*:\n\n`;
-                    pageStops.forEach((stop, index) => {
-                        replyMessage += `*${startNumber + index}.* ${stop.name}\n`;
-                    });
-                    if (state.currentPage < state.paginatedStops.length - 1) {
-                        replyMessage += `\nResponda com o *número* da paragem ou digite *"mais"* para ver as próximas.`;
-                    } else {
-                         replyMessage += `\nResponda com o *número* da paragem.`;
-                    }
-                } else {
-                    replyMessage = 'Você chegou ao fim da lista. Por favor, escolha um número ou digite "menu" para recomeçar.';
-                    state.currentPage--; // Volta para a última página válida
+            replyMessage += '\n\nDigite "menu" para fazer uma nova consulta.';
+            delete userStates[from]; // Reinicia a conversa
+        } else {
+            replyMessage = "Ocorreu um erro. Por favor, digite 'menu' para recomeçar.";
+        }
+    }
+    // Se o utilizador respondeu à pergunta inicial sobre o destino
+    else if (state.step === 'awaiting_destination') {
+        const destination = incomingMsg === 'rio de janeiro' ? 'Rio de Janeiro' : (incomingMsg === 'são gonçalo' ? 'São Gonçalo' : null);
+        if (destination) {
+            state.destination = destination;
+            const line = destination === 'Rio de Janeiro' ? companyBusData.lines.ida : companyBusData.lines.volta;
+            const stopsForRoute = allStops.filter(s => line.path.includes(s.id));
+            
+            // Cria as secções da lista
+            const listSections = [{
+                title: 'Paragens Disponíveis',
+                rows: stopsForRoute.map(stop => ({
+                    id: stop.id,
+                    title: stop.name
+                }))
+            }];
+            
+            // Envia a mensagem interativa com a lista
+            await client.messages.create({
+                from: req.body.To,
+                to: from,
+                body: `Ótimo! Agora escolha a sua paragem para *${destination}* na lista abaixo.`,
+                listPicker: {
+                    buttonText: 'Ver Paragens',
+                    sections: listSections
                 }
-            } else {
-                const choice = parseInt(incomingMsg, 10);
-                const pageSize = 10;
-                const pageIndex = Math.floor((choice - 1) / pageSize);
-                const itemIndex = (choice - 1) % pageSize;
-
-                if (!isNaN(choice) && state.paginatedStops && state.paginatedStops[pageIndex] && state.paginatedStops[pageIndex][itemIndex]) {
-                    const selectedStop = state.paginatedStops[pageIndex][itemIndex];
-                    const arrivals = calculateBusArrivalsForStop(selectedStop, state.destination);
-                    
-                    if (arrivals.length > 0) {
-                        replyMessage = `*Próximos autocarros para ${selectedStop.name}:*\n\n`;
-                        arrivals.forEach(bus => {
-                            const formattedTime = bus.arrivalTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                            replyMessage += `- Chega em *${bus.minutesAway} min* (às ${formattedTime})\n`;
-                        });
-                    } else {
-                        replyMessage = `Não há autocarros programados para a paragem *${selectedStop.name}* nas próximas horas.`;
-                    }
-                    replyMessage += '\n\nDigite "menu" para fazer uma nova consulta.';
-                    state = { step: 'start' }; 
-                } else {
-                    replyMessage = `Número inválido. Por favor, envie um número da lista que lhe enviei ou digite "mais" para ver outras opções.`;
-                }
-            }
-            break;
-        
-        default:
-            replyMessage = 'Olá! Tivemos um problema e reiniciámos a nossa conversa. Como posso ajudar?\n\n*1.* Ver lista de paragens\n*2.* Enviar a minha localização';
-            state = { step: 'awaiting_initial_choice' };
-            break;
+            });
+            state.step = 'awaiting_stop_choice';
+        } else {
+            replyMessage = "Não entendi. Por favor toque num dos botões.";
+        }
+    }
+    // Para qualquer outra mensagem, mostra o menu inicial com botões
+    else {
+        await client.messages.create({
+            from: req.body.To,
+            to: from,
+            body: 'Olá! Bem-vindo ao assistente da Coesa. Para qual destino deseja consultar os horários?',
+            buttons: ['Rio de Janeiro', 'São Gonçalo']
+        });
+        state.step = 'awaiting_destination';
     }
 
     userStates[from] = state;
 
-    twiml.message(replyMessage);
-    res.writeHead(200, {'Content-Type': 'text/xml'});
-    res.end(twiml.toString());
+    // A resposta TwiML só é necessária se houver uma mensagem de texto simples para enviar
+    if (replyMessage) {
+        const twiml = new twilio.twiml.MessagingResponse();
+        twiml.message(replyMessage);
+        res.writeHead(200, {'Content-Type': 'text/xml'});
+        res.end(twiml.toString());
+    } else {
+        // Se enviamos uma mensagem interativa, apenas confirmamos o recebimento com um 200 OK vazio.
+        res.status(200).send();
+    }
 });
 
 
