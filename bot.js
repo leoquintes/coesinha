@@ -155,14 +155,14 @@ async function handleIncomingMessageWithAI(incomingMsg) {
         let replyMessage = `*Previsões para a paragem: ${foundStop.name}*\n\n`;
 
         if (arrivalsRio.length > 0) {
-            replyMessage += `*Próximos autocarros para o Rio de Janeiro:*\n`;
+            replyMessage += `*Próximos ônibus para o Rio de Janeiro:*\n`;
             arrivalsRio.forEach(bus => {
                 const formattedTime = bus.arrivalTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                 replyMessage += `- Chega em *${bus.minutesAway} min* (às ${formattedTime})\n`;
             });
         }
         if (arrivalsSG.length > 0) {
-            replyMessage += `\n*Próximos autocarros para São Gonçalo:*\n`;
+            replyMessage += `\n*Próximos ônibus para São Gonçalo:*\n`;
             arrivalsSG.forEach(bus => {
                 const formattedTime = bus.arrivalTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                 replyMessage += `- Chega em *${bus.minutesAway} min* (às ${formattedTime})\n`;
@@ -177,8 +177,8 @@ async function handleIncomingMessageWithAI(incomingMsg) {
     try {
         const stopListForAI = allStops.map(s => s.name).join(', ');
         const prompt = `
-            Você é um assistente de WhatsApp amigável e prestativo da empresa de autocarros Coesa, especialista na linha 110.
-            O seu objetivo é responder a perguntas dos utilizadores sobre horários de autocarros.
+            Você é um assistente de WhatsApp amigável e prestativo da empresa de ônibus Coesa, especialista na linha 110.
+            O seu objetivo é responder a perguntas dos utilizadores sobre horários de ônibus.
 
             A lista de paragens de autocarro disponíveis é: ${stopListForAI}.
 
@@ -202,7 +202,7 @@ async function handleIncomingMessageWithAI(incomingMsg) {
                 const dataForFormatting = { stopName: stopData.name, arrivalsRio, arrivalsSG };
                 
                 const formattingPrompt = `
-                    Formate a seguinte informação de horários de autocarros numa resposta amigável e clara para o WhatsApp.
+                    Formate a seguinte informação de horários de ônibus numa resposta amigável e clara para o WhatsApp.
                     Use asteriscos para negrito e itálico para ênfase.
                     Dados: ${JSON.stringify(dataForFormatting)}
                 `;
