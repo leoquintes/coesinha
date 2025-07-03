@@ -1,8 +1,10 @@
 // Importa as ferramentas necessárias
 const express = require('express');
 const twilio = require('twilio');
+// NOVO: Importa as funções para lidar com fusos horários
+const { zonedTimeToUtc, format } = require('date-fns-tz');
 
-// --- INÍCIO DA LÓGICA DE HORÁRIOS (A mesma do ficheiro HTML) ---
+// --- INÍCIO DA LÓGICA DE HORÁRIOS ---
 
 const allStops = [
     { id: "142254614", name: "Trindade", lat: -22.807783, lon: -43.016872 },
@@ -116,9 +118,13 @@ function calculateBusArrivalsForStop(stop, destination) {
     const line = destination === 'Rio de Janeiro' ? companyBusData.lines.ida : companyBusData.lines.volta;
     if (!line || !line.path.includes(stop.id)) return [];
 
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    if (dayOfWeek === 0 || dayOfWeek === 6) return [];
+    const timeZone = 'America/Sao_Paulo';
+    const now = new Date(); // Hora atual do servidor (UTC)
+
+    const dayOfWeek = parseInt(format(now, 'i', { timeZone })); // 1 (Seg) a 7 (Dom)
+    if (dayOfWeek === 7 || dayOfWeek === 6) { // Se for Sábado ou Domingo
+        return [];
+    }
 
     const upcomingArrivals = [];
     const MAX_ARRIVALS_TO_SHOW = 3;
@@ -127,20 +133,22 @@ function calculateBusArrivalsForStop(stop, destination) {
         const travelTimes = generateProportionalTravelTimes(line.path, trip.duration);
         const travelTime = travelTimes[stop.id];
         if (typeof travelTime === 'undefined') continue;
-
-        const [hours, minutes] = trip.departure.split(':').map(Number);
-        const departureDate = new Date();
-        departureDate.setHours(hours, minutes, 0, 0);
         
-        const arrivalDate = new Date(departureDate.getTime() + travelTime * 60000);
+        const [hours, minutes] = trip.departure.split(':').map(Number);
 
-        if (arrivalDate > now) {
-            const minutesAway = Math.round((arrivalDate - now) / 60000);
+        // Cria a data de partida como se estivesse no fuso horário do Brasil
+        const departureString = `${format(now, 'yyyy-MM-dd', { timeZone })}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+        const departureUTC = zonedTimeToUtc(departureString, timeZone);
+        
+        const arrivalUTC = new Date(departureUTC.getTime() + travelTime * 60000);
+
+        if (arrivalUTC > now) {
+            const minutesAway = Math.round((arrivalUTC.getTime() - now.getTime()) / 60000);
             upcomingArrivals.push({
                 line: line.line,
                 destination: line.destination,
                 minutesAway: minutesAway,
-                arrivalTime: arrivalDate
+                arrivalTime: arrivalUTC 
             });
             if (upcomingArrivals.length >= MAX_ARRIVALS_TO_SHOW) break;
         }
@@ -150,72 +158,64 @@ function calculateBusArrivalsForStop(stop, destination) {
 
 // --- FIM DA LÓGICA DE HORÁRIOS ---
 
-
 // --- CONFIGURAÇÃO DO SERVIDOR E DO BOT ---
 
 const app = express();
-// A Twilio envia os dados no formato 'form-urlencoded'
 app.use(express.urlencoded({ extended: false }));
 
-// Inicializa os dados das linhas quando o servidor arranca
 initializeLineData();
 
-// O Webhook que a Twilio irá chamar
 app.post('/whatsapp', (req, res) => {
     const twiml = new twilio.twiml.MessagingResponse();
-    const incomingMsg = req.body.Body.toLowerCase().trim(); // Mensagem do utilizador
-
-    // Tenta encontrar um ponto de autocarro correspondente na mensagem
-    const foundStop = allStops.find(stop => incomingMsg.includes(stop.name.toLowerCase()));
+    const incomingMsg = req.body.Body.toLowerCase().trim();
+    
+    // Simplifica a busca, removendo acentos e caracteres especiais
+    const normalizedMsg = incomingMsg.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    
+    // Procura por uma correspondência parcial e insensível a maiúsculas/minúsculas
+    const foundStop = allStops.find(stop => 
+        stop.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(normalizedMsg)
+    );
     
     let replyMessage = '';
 
     if (foundStop) {
-        // Se encontrou um ponto, calcula os horários para ambos os destinos
         const arrivalsRio = calculateBusArrivalsForStop(foundStop, 'Rio de Janeiro');
         const arrivalsSG = calculateBusArrivalsForStop(foundStop, 'São Gonçalo');
 
         replyMessage = `*Previsões para o ponto: ${foundStop.name}*\n\n`;
 
         if (arrivalsRio.length > 0) {
-            replyMessage += `*Próximos autocarros para o Rio de Janeiro:*\n`;
+            replyMessage += `*Próximos ônibus para o Rio de Janeiro:*\n`;
             arrivalsRio.forEach(bus => {
-                const arrivalTime = bus.arrivalTime;
-                const hours = arrivalTime.getHours().toString().padStart(2, '0');
-                const minutes = arrivalTime.getMinutes().toString().padStart(2, '0');
-                replyMessage += `- Chega em *${bus.minutesAway} min* (às ${hours}:${minutes})\n`;
+                const formattedTime = format(bus.arrivalTime, 'HH:mm', { timeZone: 'America/Sao_Paulo' });
+                replyMessage += `- Chega em *${bus.minutesAway} min* (às ${formattedTime})\n`;
             });
         } else {
-            replyMessage += `_Nenhum autocarro previsto para o Rio de Janeiro nas próximas horas._\n`;
+            replyMessage += `_Nenhum ônibus  previsto para o Rio de Janeiro nas próximas horas._\n`;
         }
 
-        replyMessage += `\n`; // Adiciona uma linha em branco para separar
+        replyMessage += `\n`;
 
         if (arrivalsSG.length > 0) {
-            replyMessage += `*Próximos autocarros para São Gonçalo:*\n`;
+            replyMessage += `*Próximos ônibus para São Gonçalo:*\n`;
             arrivalsSG.forEach(bus => {
-                const arrivalTime = bus.arrivalTime;
-                const hours = arrivalTime.getHours().toString().padStart(2, '0');
-                const minutes = arrivalTime.getMinutes().toString().padStart(2, '0');
-                replyMessage += `- Chega em *${bus.minutesAway} min* (às ${hours}:${minutes})\n`;
+                const formattedTime = format(bus.arrivalTime, 'HH:mm', { timeZone: 'America/Sao_Paulo' });
+                replyMessage += `- Chega em *${bus.minutesAway} min* (às ${formattedTime})\n`;
             });
         } else {
-            replyMessage += `_Nenhum autocarro previsto para São Gonçalo nas próximas horas._\n`;
+            replyMessage += `_Nenhum ônibus  previsto para São Gonçalo nas próximas horas._\n`;
         }
 
     } else {
-        // Mensagem de ajuda se não encontrar o ponto
-        replyMessage = 'Olá! Para saber os horários, envie o nome do seu ponto de autocarro (ex: "horários Trindade").';
+        replyMessage = 'Olá! Para saber os horários, envie o nome do seu ponto de ônibus  (ex: "horários Trindade").';
     }
 
     twiml.message(replyMessage);
-
     res.writeHead(200, {'Content-Type': 'text/xml'});
     res.end(twiml.toString());
 });
 
-
-// --- INICIA O SERVIDOR ---
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Servidor do bot a correr na porta ${PORT}`);
