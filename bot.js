@@ -89,6 +89,7 @@ app.post('/whatsapp', async (req, res) => {
 
     let replyMessage = '';
 
+    // Comando para reiniciar a qualquer momento
     if (incomingMsg === 'menu' || incomingMsg === 'início') {
         state = { step: 'start' };
     }
@@ -110,32 +111,43 @@ app.post('/whatsapp', async (req, res) => {
                 state.step = 'awaiting_letter';
             } else {
                 replyMessage = 'Opção inválida. Por favor, responda com o número *1* para Rio de Janeiro ou *2* para São Gonçalo.';
+                // Mantém o mesmo estado para o utilizador tentar novamente
+                state.step = 'awaiting_destination';
             }
             break;
 
         case 'awaiting_letter':
-            const letter = incomingMsg.charAt(0);
-            const line = state.destination === 'Rio de Janeiro' ? companyBusData.lines.ida : companyBusData.lines.volta;
-            const filteredStops = allStops
-                .filter(stop => line.path.includes(stop.id)) // Filtra apenas paragens da rota selecionada
-                .filter(stop => stop.name.toLowerCase().startsWith(letter));
+            // Verifica se a mensagem é uma única letra
+            if (incomingMsg.length === 1 && /^[a-zA-Z]$/.test(incomingMsg)) {
+                const letter = incomingMsg.charAt(0);
+                const line = state.destination === 'Rio de Janeiro' ? companyBusData.lines.ida : companyBusData.lines.volta;
+                
+                // Filtra as paragens que pertencem à rota e começam com a letra
+                const filteredStops = allStops
+                    .filter(stop => line.path.includes(stop.id)) 
+                    .filter(stop => stop.name.toLowerCase().startsWith(letter));
 
-            if (filteredStops.length > 0) {
-                state.stopList = filteredStops; // Guarda a lista para o próximo passo
-                replyMessage = `Encontrei estas paragens que começam com a letra "${letter.toUpperCase()}":\n\n`;
-                filteredStops.forEach((stop, index) => {
-                    replyMessage += `*${index + 1}.* ${stop.name}\n`;
-                });
-                replyMessage += '\nPor favor, responda com o *número* da sua paragem.';
-                state.step = 'awaiting_stop_number';
+                if (filteredStops.length > 0) {
+                    state.stopList = filteredStops; // Guarda a lista para o próximo passo
+                    replyMessage = `Encontrei estas paragens que começam com a letra "${letter.toUpperCase()}":\n\n`;
+                    filteredStops.forEach((stop, index) => {
+                        replyMessage += `*${index + 1}.* ${stop.name}\n`;
+                    });
+                    replyMessage += '\nPor favor, responda com o *número* da sua paragem.';
+                    state.step = 'awaiting_stop_number';
+                } else {
+                    replyMessage = `Não encontrei nenhuma paragem que comece com a letra "${letter.toUpperCase()}". Por favor, tente outra letra ou escreva "menu" para recomeçar.`;
+                    state.step = 'awaiting_letter'; // Mantém o estado para nova tentativa
+                }
             } else {
-                replyMessage = `Não encontrei nenhuma paragem que comece com a letra "${letter.toUpperCase()}". Por favor, tente outra letra ou escreva "menu" para recomeçar.`;
+                replyMessage = 'Por favor, envie apenas *uma letra* para procurar a paragem.';
+                state.step = 'awaiting_letter'; // Mantém o estado
             }
             break;
 
         case 'awaiting_stop_number':
             const choice = parseInt(incomingMsg, 10);
-            if (!isNaN(choice) && choice > 0 && choice <= state.stopList.length) {
+            if (!isNaN(choice) && state.stopList && choice > 0 && choice <= state.stopList.length) {
                 const selectedStop = state.stopList[choice - 1];
                 const arrivals = calculateBusArrivalsForStop(selectedStop, state.destination);
                 
@@ -152,7 +164,14 @@ app.post('/whatsapp', async (req, res) => {
                 state = { step: 'start' }; // Reinicia a conversa
             } else {
                 replyMessage = `Número inválido. Por favor, envie um número da lista que lhe enviei ou digite "menu" para recomeçar.`;
+                state.step = 'awaiting_stop_number'; // Mantém o estado para nova tentativa
             }
+            break;
+        
+        default:
+            // Caso o estado se perca (servidor reinicia, etc.)
+            replyMessage = 'Olá! Tivemos um problema e reiniciámos a nossa conversa. Para qual destino deseja consultar os horários?\n*1.* Rio de Janeiro\n*2.* São Gonçalo';
+            state = { step: 'awaiting_destination' };
             break;
     }
 
