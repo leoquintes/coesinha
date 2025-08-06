@@ -128,7 +128,7 @@ app.post('/whatsapp', async (req, res) => {
                 });
             }
              if (arrivalsRio.length === 0 && arrivalsSG.length === 0) {
-                replyMessage += `_Nenhum autocarro previsto para esta paragem nas próximas horas._`;
+                replyMessage += `_Nenhum ônibus previsto para esta paragem nas próximas horas._`;
             }
         } else {
             replyMessage = "Não consegui encontrar uma paragem a menos de 2km da sua localização.";
@@ -217,13 +217,13 @@ app.post('/whatsapp', async (req, res) => {
                         const arrivals = calculateBusArrivalsForStop(selectedStop, state.destination);
                         
                         if (arrivals.length > 0) {
-                            replyMessage = `*Próximos autocarros para ${selectedStop.name}:*\n\n`;
+                            replyMessage = `*Próximos ônibuss para ${selectedStop.name}:*\n\n`;
                             arrivals.forEach(bus => {
                                 const formattedTime = bus.arrivalTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                                 replyMessage += `- Chega em *${bus.minutesAway} min* (às ${formattedTime})\n`;
                             });
                         } else {
-                            replyMessage = `Não há autocarros programados para a paragem *${selectedStop.name}* nas próximas horas.`;
+                            replyMessage = `Não há ônibuss programados para a paragem *${selectedStop.name}* nas próximas horas.`;
                         }
                         replyMessage += '\n\nDigite "menu" para fazer uma nova consulta.';
                         delete userStates[from];
@@ -254,3 +254,4 @@ app.listen(PORT, () => {
     initializeLineData();
     console.log(`Servidor do bot a correr na porta ${PORT}`);
 });
+
