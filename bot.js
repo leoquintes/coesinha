@@ -128,10 +128,10 @@ app.post('/whatsapp', async (req, res) => {
                 });
             }
              if (arrivalsRio.length === 0 && arrivalsSG.length === 0) {
-                replyMessage += `_Nenhum ônibus previsto para esta paragem nas próximas horas._`;
+                replyMessage += `_Nenhum ônibus previsto para este ponto nas próximas horas._`;
             }
         } else {
-            replyMessage = "Não consegui encontrar uma paragem a menos de 2km da sua localização.";
+            replyMessage = "Não consegui encontrar um ponto a menos de 2km da sua localização.";
         }
         
         delete userStates[from]; // Reinicia a conversa
@@ -139,7 +139,7 @@ app.post('/whatsapp', async (req, res) => {
         // Lógica de conversa baseada em estado
         switch (state.step) {
             case 'start':
-                replyMessage = 'Olá! Bem-vindo ao assistente da Coesa. Como posso ajudar?\n\n*1.* Ver lista de paragens\n*2.* Enviar a minha localização';
+                replyMessage = 'Olá! Bem-vindo ao assistente da Coesa. Como posso ajudar?\n\n*1.* Ver lista de pontos\n*2.* Enviar a minha localização';
                 state.step = 'awaiting_initial_choice';
                 break;
 
@@ -172,14 +172,14 @@ app.post('/whatsapp', async (req, res) => {
                     }
                     state.currentPage = 0;
 
-                    replyMessage = `Estas são as primeiras paragens para *${state.destination}*:\n\n`;
+                    replyMessage = `Estes são os primeiros pontos para *${state.destination}*:\n\n`;
                     state.paginatedStops[0].forEach((stop, index) => {
                         replyMessage += `*${index + 1}.* ${stop.name}\n`;
                     });
                     if (state.paginatedStops.length > 1) {
-                        replyMessage += `\nResponda com o *número* da paragem ou digite *"mais"* para ver as próximas.`;
+                        replyMessage += `\nResponda com o *número* do ponto ou digite *"mais"* para ver os próximos.`;
                     } else {
-                        replyMessage += `\nResponda com o *número* da paragem.`;
+                        replyMessage += `\nResponda com o *número* do ponto.`;
                     }
                     state.step = 'awaiting_stop_from_list';
                 } else {
@@ -217,7 +217,7 @@ app.post('/whatsapp', async (req, res) => {
                         const arrivals = calculateBusArrivalsForStop(selectedStop, state.destination);
                         
                         if (arrivals.length > 0) {
-                            replyMessage = `*Próximos ônibuss para ${selectedStop.name}:*\n\n`;
+                            replyMessage = `*Próximos ônibus para ${selectedStop.name}:*\n\n`;
                             arrivals.forEach(bus => {
                                 const formattedTime = bus.arrivalTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                                 replyMessage += `- Chega em *${bus.minutesAway} min* (às ${formattedTime})\n`;
@@ -254,5 +254,6 @@ app.listen(PORT, () => {
     initializeLineData();
     console.log(`Servidor do bot a correr na porta ${PORT}`);
 });
+
 
 
