@@ -31,6 +31,7 @@ const allStops = [
     { id: "418826665", name: "Parada 40", lat: -22.826914, lon: -43.060925 },
     { id: "418826666", name: "Estação Mangueira", lat: -22.827888, lon: -43.063564 },
     { id: "418826667", name: "Estação Ex. Combatente", lat: -22.828655, lon: -43.065891 },
+    { id: "419569709", name: "PN419571982", lat: -22.829304, lon: -43.067993 },
     { id: "137680643", name: "Est. UERJ", lat: -22.830683, lon: -43.069901 },
     { id: "419571982", name: "Estação Paul Leroux", lat: -22.831375, lon: -43.071941 },
     { id: "419572426", name: "Estação CIUG", lat: -22.831776, lon: -43.074184 },
