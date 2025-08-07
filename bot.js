@@ -111,7 +111,7 @@ app.post('/whatsapp', async (req, res) => {
             const arrivalsRio = calculateBusArrivalsForStop(closestStop, 'Rio de Janeiro');
             const arrivalsSG = calculateBusArrivalsForStop(closestStop, 'São Gonçalo');
 
-            replyMessage = `A paragem mais próxima é *${closestStop.name}*.\n\n`;
+            replyMessage = `O ponto mais próxima é *${closestStop.name}*.\n\n`;
 
             if (arrivalsRio.length > 0) {
                 replyMessage += `*Próximos para o Rio de Janeiro:*\n`;
@@ -128,10 +128,10 @@ app.post('/whatsapp', async (req, res) => {
                 });
             }
              if (arrivalsRio.length === 0 && arrivalsSG.length === 0) {
-                replyMessage += `_Nenhum ônibus previsto para esta paragem nas próximas horas._`;
+                replyMessage += `_Nenhum ônibus previsto para este ponto nas próximas horas._`;
             }
         } else {
-            replyMessage = "Não consegui encontrar uma paragem a menos de 2km da sua localização.";
+            replyMessage = "Não consegui encontrar um ponto a menos de 2km da sua localização.";
         }
         
         delete userStates[from]; // Reinicia a conversa
@@ -139,13 +139,13 @@ app.post('/whatsapp', async (req, res) => {
         // Lógica de conversa baseada em estado
         switch (state.step) {
             case 'start':
-                replyMessage = 'Olá! Bem-vindo ao assistente da Coesa. Como posso ajudar?\n\n*1.* Ver lista de paragens\n*2.* Enviar a minha localização';
+                replyMessage = 'Olá! Bem-vindo ao assistente da Coesa. Como posso ajudar?\n\n*1.* Ver lista de pontos\n*2.* Enviar a minha localização';
                 state.step = 'awaiting_initial_choice';
                 break;
 
             case 'awaiting_initial_choice':
                 if (incomingMsg === '1') {
-                    replyMessage = 'Para qual destino deseja ver as paragens?\n*1.* Rio de Janeiro\n*2.* São Gonçalo';
+                    replyMessage = 'Para qual destino deseja ver os pontos?\n*1.* Rio de Janeiro\n*2.* São Gonçalo';
                     state.step = 'awaiting_destination_for_list';
                 } else if (incomingMsg === '2') {
                     replyMessage = 'Por favor, use a função do WhatsApp para partilhar a sua localização atual.';
@@ -172,14 +172,14 @@ app.post('/whatsapp', async (req, res) => {
                     }
                     state.currentPage = 0;
 
-                    replyMessage = `Estas são as primeiras paragens para *${state.destination}*:\n\n`;
+                    replyMessage = `Estas são os primeiros pontos para *${state.destination}*:\n\n`;
                     state.paginatedStops[0].forEach((stop, index) => {
                         replyMessage += `*${index + 1}.* ${stop.name}\n`;
                     });
                     if (state.paginatedStops.length > 1) {
-                        replyMessage += `\nResponda com o *número* da paragem ou digite *"mais"* para ver as próximas.`;
+                        replyMessage += `\nResponda com o *número* do ponto ou digite *"mais"* para ver as próximas.`;
                     } else {
-                        replyMessage += `\nResponda com o *número* da paragem.`;
+                        replyMessage += `\nResponda com o *número* do ponto.`;
                     }
                     state.step = 'awaiting_stop_from_list';
                 } else {
@@ -193,14 +193,14 @@ app.post('/whatsapp', async (req, res) => {
                     if (state.currentPage < state.paginatedStops.length) {
                         const pageStops = state.paginatedStops[state.currentPage];
                         const startNumber = state.currentPage * 10 + 1;
-                        replyMessage = `Continuando a lista de paragens para *${state.destination}*:\n\n`;
+                        replyMessage = `Continuando a lista de pontos para *${state.destination}*:\n\n`;
                         pageStops.forEach((stop, index) => {
                             replyMessage += `*${startNumber + index}.* ${stop.name}\n`;
                         });
                         if (state.currentPage < state.paginatedStops.length - 1) {
-                            replyMessage += `\nResponda com o *número* da paragem ou digite *"mais"* para ver as próximas.`;
+                            replyMessage += `\nResponda com o *número* do ponto ou digite *"mais"* para ver as próximas.`;
                         } else {
-                             replyMessage += `\nResponda com o *número* da paragem.`;
+                             replyMessage += `\nResponda com o *número* do ponto.`;
                         }
                     } else {
                         replyMessage = 'Você chegou ao fim da lista. Por favor, escolha um número ou digite "menu" para recomeçar.';
@@ -223,7 +223,7 @@ app.post('/whatsapp', async (req, res) => {
                                 replyMessage += `- Chega em *${bus.minutesAway} min* (às ${formattedTime})\n`;
                             });
                         } else {
-                            replyMessage = `Não há ônibuss programados para a paragem *${selectedStop.name}* nas próximas horas.`;
+                            replyMessage = `Não há ônibuss programados para o ponto *${selectedStop.name}* nas próximas horas.`;
                         }
                         replyMessage += '\n\nDigite "menu" para fazer uma nova consulta.';
                         delete userStates[from];
@@ -234,7 +234,7 @@ app.post('/whatsapp', async (req, res) => {
                 break;
             
             default:
-                replyMessage = 'Olá! Tivemos um problema e reiniciámos a nossa conversa. Como posso ajudar?\n\n*1.* Ver lista de paragens\n*2.* Enviar a minha localização';
+                replyMessage = 'Olá! Tivemos um problema e reiniciámos a nossa conversa. Como posso ajudar?\n\n*1.* Ver lista de pontos\n*2.* Enviar a minha localização';
                 state = { step: 'awaiting_initial_choice' };
                 break;
         }
@@ -254,3 +254,4 @@ app.listen(PORT, () => {
     initializeLineData();
     console.log(`Servidor do bot a correr na porta ${PORT}`);
 });
+
