@@ -31,8 +31,7 @@ const allStops = [
     { id: "418826665", name: "Parada 40", lat: -22.826914, lon: -43.060925 },
     { id: "418826666", name: "Estação Mangueira", lat: -22.827888, lon: -43.063564 },
     { id: "418826667", name: "Estação Ex. Combatente", lat: -22.828655, lon: -43.065891 },
-    { id: "419569709", name: "PN419571982", lat: -22.829304, lon: -43.067993 },
-    { id: "137680643", name: "PN419572426", lat: -22.830683, lon: -43.069901 },
+    { id: "137680643", name: "Est. UERJ", lat: -22.830683, lon: -43.069901 },
     { id: "419571982", name: "Estação Paul Leroux", lat: -22.831375, lon: -43.071941 },
     { id: "419572426", name: "Estação CIUG", lat: -22.831776, lon: -43.074184 },
     { id: "419572427", name: "Porto Velho 2", lat: -22.832531, lon: -43.0779 },
@@ -77,7 +76,7 @@ function generateProportionalTravelTimes(path, totalDurationMinutes) { const tra
 function initializeLineData() { const pathIda = ["142254614", "142254613", "142254611", "278722552", "142254608", "137680636", "137366932", "137680183", "137680184", "137680185", "137680186", "137680188", "137680637", "137680245", "137680246", "137680638", "418826665", "418826666", "418826667", "419569709", "137680643", "419571982", "419572426", "419572427", "419572428", "137680649", "137680650", "137680651", "137680652", "137680692", "137680654", "137680655", "137680656", "137680657", "137680658", "137680659", "137680793", "80888862", "80888863", "74396946", "416634036", "74396949", "111766609", "68868000", "68868001", "280645763", "280645764", "280645765", "280645766", "280645767", "68338456", "68338453", "68338451", "68338449", "68338445", "68355721"]; const pathVolta = pathIda.slice().reverse(); const tripsIda = [ { departure: "04:30", duration: 64 }, { departure: "04:38", duration: 64 }, { departure: "04:46", duration: 64 }, { departure: "04:54", duration: 64 }, { departure: "05:02", duration: 73 }, { departure: "05:10", duration: 73 }, { departure: "05:15", duration: 71 }, { departure: "05:20", duration: 71 }, { departure: "05:25", duration: 73 }, { departure: "05:30", duration: 87 }, { departure: "05:35", duration: 90 }, { departure: "05:40", duration: 90 }, { departure: "05:45", duration: 90 }, { departure: "05:50", duration: 90 }, { departure: "05:55", duration: 90 }, { departure: "06:00", duration: 107 }, { departure: "06:05", duration: 107 }, { departure: "06:10", duration: 107 }, { departure: "06:15", duration: 107 }, { departure: "06:20", duration: 107 }, { departure: "06:25", duration: 107 }, { departure: "06:30", duration: 113 }, { departure: "06:35", duration: 113 }, { departure: "06:40", duration: 113 }, { departure: "06:45", duration: 113 }, { departure: "06:51", duration: 113 }, { departure: "06:57", duration: 113 }, { departure: "07:06", duration: 115 }, { departure: "07:15", duration: 115 }, { departure: "07:25", duration: 115 }, { departure: "07:35", duration: 115 }, { departure: "07:46", duration: 115 }, { departure: "07:57", duration: 115 }, { departure: "08:08", duration: 109 }, { departure: "08:21", duration: 109 }, { departure: "08:34", duration: 109 }, { departure: "08:47", duration: 109 }, { departure: "09:00", duration: 101 }, { departure: "09:15", duration: 101 }, { departure: "09:30", duration: 96 }, { departure: "09:45", duration: 96 }, { departure: "10:00", duration: 96 }, { departure: "10:18", duration: 96 }, { departure: "10:40", duration: 90 }, { departure: "11:02", duration: 90 }, { departure: "11:25", duration: 90 }, { departure: "11:48", duration: 85 }, { departure: "12:10", duration: 85 }, { departure: "12:32", duration: 81 }, { departure: "12:54", duration: 81 }, { departure: "13:16", duration: 81 }, { departure: "13:38", duration: 76 }, { departure: "14:00", duration: 76 }, { departure: "14:20", duration: 76 }, { departure: "14:38", duration: 76 }, { departure: "14:57", duration: 76 }, { departure: "15:16", duration: 76 }, { departure: "15:35", duration: 78 }, { departure: "15:54", duration: 78 }, { departure: "16:13", duration: 78 }, { departure: "16:32", duration: 78 }, { departure: "16:51", duration: 78 }, { departure: "17:11", duration: 78 }, { departure: "17:27", duration: 78 }, { departure: "17:57", duration: 77 }, { departure: "18:27", duration: 72 }, { departure: "18:57", duration: 72 }, { departure: "19:27", duration: 62 }, { departure: "19:57", duration: 62 }, { departure: "20:29", duration: 62 }, { departure: "21:11", duration: 54 } ]; const tripsVolta = [ { departure: "05:40", duration: 60 }, { departure: "05:55", duration: 60 }, { departure: "06:07", duration: 63 }, { departure: "06:28", duration: 61 }, { departure: "06:40", duration: 66 }, { departure: "06:52", duration: 66 }, { departure: "07:02", duration: 73 }, { departure: "07:10", duration: 73 }, { departure: "07:19", duration: 73 }, { departure: "07:27", duration: 73 }, { departure: "07:36", duration: 73 }, { departure: "07:45", duration: 73 }, { departure: "07:56", duration: 73 }, { departure: "08:07", duration: 78 }, { departure: "08:22", duration: 78 }, { departure: "08:38", duration: 78 }, { departure: "08:52", duration: 78 }, { departure: "09:06", duration: 78 }, { departure: "09:20", duration: 78 }, { departure: "09:35", duration: 78 }, { departure: "09:50", duration: 78 }, { departure: "10:12", duration: 80 }, { departure: "10:34", duration: 84 }, { departure: "10:57", duration: 84 }, { departure: "11:19", duration: 85 }, { departure: "11:41", duration: 85 }, { departure: "12:03", duration: 88 }, { departure: "12:25", duration: 88 }, { departure: "12:47", duration: 88 }, { departure: "13:09", duration: 88 }, { departure: "13:31", duration: 88 }, { departure: "13:53", duration: 88 }, { departure: "14:14", duration: 89 }, { departure: "14:34", duration: 93 }, { departure: "14:47", duration: 93 }, { departure: "15:00", duration: 104 }, { departure: "15:10", duration: 106 }, { departure: "15:19", duration: 106 }, { departure: "15:28", duration: 106 }, { departure: "15:37", duration: 102 }, { departure: "15:45", duration: 120 }, { departure: "15:53", duration: 120 }, { departure: "16:01", duration: 128 }, { departure: "16:09", duration: 128 }, { departure: "16:16", duration: 128 }, { departure: "16:24", duration: 128 }, { departure: "16:32", duration: 140 }, { departure: "16:40", duration: 140 }, { departure: "16:48", duration: 140 }, { departure: "16:55", duration: 140 }, { departure: "17:03", duration: 140 }, { departure: "17:10", duration: 140 }, { departure: "17:18", duration: 140 }, { departure: "17:26", duration: 140 }, { departure: "17:34", duration: 128 }, { departure: "17:42", duration: 128 }, { departure: "17:50", duration: 128 }, { departure: "17:58", duration: 128 }, { departure: "18:06", duration: 123 }, { departure: "18:14", duration: 123 }, { departure: "18:22", duration: 120 }, { departure: "18:30", duration: 113 }, { departure: "18:39", duration: 110 }, { departure: "18:50", duration: 113 }, { departure: "18:59", duration: 108 }, { departure: "19:12", duration: 99 }, { departure: "19:25", duration: 99 }, { departure: "19:38", duration: 88 }, { departure: "19:51", duration: 90 }, { departure: "20:16", duration: 83 }, { departure: "20:41", duration: 83 }, { departure: "21:06", duration: 72 }, { departure: "21:40", duration: 66 }, { departure: "22:10", duration: 66 } ]; companyBusData.lines.ida = { line: "110 (Ida)", destination: "Rio de Janeiro", path: pathIda, trips: tripsIda }; companyBusData.lines.volta = { line: "110 (Volta)", destination: "São Gonçalo", path: pathVolta, trips: tripsVolta }; }
 function calculateBusArrivalsForStop(stop, destination) { const line = destination === 'Rio de Janeiro' ? companyBusData.lines.ida : companyBusData.lines.volta; if (!line || !line.path.includes(stop.id)) return []; const now = new Date(); const dayOfWeek = now.getDay(); if (dayOfWeek === 0 || dayOfWeek === 6) { return []; } const upcomingArrivals = []; const MAX_ARRIVALS_TO_SHOW = 3; for (const trip of line.trips) { const travelTimes = generateTravelTimes(line.path, { destination: line.destination, duration: trip.duration }); const travelTime = travelTimes[stop.id]; if (typeof travelTime === 'undefined') continue; const [hours, minutes] = trip.departure.split(':').map(Number); const departureDate = new Date(); departureDate.setHours(hours, minutes, 0, 0); const arrivalDate = new Date(departureDate.getTime() + travelTime * 60000); if (arrivalDate > now) { const minutesAway = Math.round((arrivalDate.getTime() - now.getTime()) / 60000); upcomingArrivals.push({ line: line.line, destination: line.destination, minutesAway: minutesAway, arrivalTime: arrivalDate }); if (upcomingArrivals.length >= MAX_ARRIVALS_TO_SHOW) break; } } return upcomingArrivals; }
 
-// --- LÓGICA PRINCIPAL DO BOT ---
+// --- LÓGICA PRINCIPAL ---
 
 app.post('/whatsapp', async (req, res) => {
     const twiml = new twilio.twiml.MessagingResponse();
@@ -111,7 +110,7 @@ app.post('/whatsapp', async (req, res) => {
             const arrivalsRio = calculateBusArrivalsForStop(closestStop, 'Rio de Janeiro');
             const arrivalsSG = calculateBusArrivalsForStop(closestStop, 'São Gonçalo');
 
-            replyMessage = `A paragem mais próxima é *${closestStop.name}*.\n\n`;
+            replyMessage = `O ponto mais próximo é *${closestStop.name}*.\n\n`;
 
             if (arrivalsRio.length > 0) {
                 replyMessage += `*Próximos para o Rio de Janeiro:*\n`;
@@ -145,10 +144,10 @@ app.post('/whatsapp', async (req, res) => {
 
             case 'awaiting_initial_choice':
                 if (incomingMsg === '1') {
-                    replyMessage = 'Para qual destino deseja ver as paragens?\n*1.* Rio de Janeiro\n*2.* São Gonçalo';
+                    replyMessage = 'Para qual destino deseja ver os pontos?\n*1.* Rio de Janeiro\n*2.* São Gonçalo';
                     state.step = 'awaiting_destination_for_list';
                 } else if (incomingMsg === '2') {
-                    replyMessage = 'Por favor, use a função do WhatsApp para partilhar a sua localização atual.';
+                    replyMessage = 'Por favor, use a função do WhatsApp para compartilhar a sua localização atual.';
                     state.step = 'awaiting_location';
                 } else {
                     replyMessage = 'Opção inválida. Por favor, responda com *1* ou *2*.';
@@ -156,7 +155,7 @@ app.post('/whatsapp', async (req, res) => {
                 break;
             
             case 'awaiting_location':
-                 replyMessage = 'Ainda estou a aguardar que partilhe a sua localização. Se mudou de ideias, digite "menu" para recomeçar.';
+                 replyMessage = 'Ainda estou aguardando que compartilhe a sua localização. Se mudou de ideia, digite "menu" para recomeçar.';
                  break;
 
             case 'awaiting_destination_for_list':
@@ -193,12 +192,12 @@ app.post('/whatsapp', async (req, res) => {
                     if (state.currentPage < state.paginatedStops.length) {
                         const pageStops = state.paginatedStops[state.currentPage];
                         const startNumber = state.currentPage * 10 + 1;
-                        replyMessage = `Continuando a lista de paragens para *${state.destination}*:\n\n`;
+                        replyMessage = `Continuando a lista de pontos para *${state.destination}*:\n\n`;
                         pageStops.forEach((stop, index) => {
                             replyMessage += `*${startNumber + index}.* ${stop.name}\n`;
                         });
                         if (state.currentPage < state.paginatedStops.length - 1) {
-                            replyMessage += `\nResponda com o *número* da paragem ou digite *"mais"* para ver as próximas.`;
+                            replyMessage += `\nResponda com o *número* do ponto ou digite *"mais"* para ver os próximos.`;
                         } else {
                              replyMessage += `\nResponda com o *número* da paragem.`;
                         }
@@ -223,18 +222,18 @@ app.post('/whatsapp', async (req, res) => {
                                 replyMessage += `- Chega em *${bus.minutesAway} min* (às ${formattedTime})\n`;
                             });
                         } else {
-                            replyMessage = `Não há ônibuss programados para a paragem *${selectedStop.name}* nas próximas horas.`;
+                            replyMessage = `Não há ônibus programados para o ponto *${selectedStop.name}* nas próximas horas.`;
                         }
                         replyMessage += '\n\nDigite "menu" para fazer uma nova consulta.';
                         delete userStates[from];
                     } else {
-                        replyMessage = `Número inválido. Por favor, envie um número da lista que lhe enviei ou digite "mais" para ver outras opções.`;
+                        replyMessage = `Número inválido. Por favor, envie um número da lista que enviei ou digite "mais" para ver outras opções.`;
                     }
                 }
                 break;
             
             default:
-                replyMessage = 'Olá! Tivemos um problema e reiniciámos a nossa conversa. Como posso ajudar?\n\n*1.* Ver lista de paragens\n*2.* Enviar a minha localização';
+                replyMessage = 'Olá! Tivemos um problema e reiniciamos a nossa conversa. Como posso ajudar?\n\n*1.* Ver lista de pontos\n*2.* Enviar a minha localização';
                 state = { step: 'awaiting_initial_choice' };
                 break;
         }
@@ -254,4 +253,5 @@ app.listen(PORT, () => {
     initializeLineData();
     console.log(`Servidor do bot a correr na porta ${PORT}`);
 });
+
 
