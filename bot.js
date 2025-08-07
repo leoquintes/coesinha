@@ -127,8 +127,6 @@ app.post('/whatsapp', async (req, res) => {
                     replyMessage += `- Em *${bus.minutesAway} min* (às ${formattedTime})\n`;
                 });
             }
-        
-                    
              if (arrivalsRio.length === 0 && arrivalsSG.length === 0) {
                 replyMessage += `_Nenhum ônibus previsto para este ponto nas próximas horas._`;
             }
@@ -227,7 +225,7 @@ app.post('/whatsapp', async (req, res) => {
                         } else {
                             replyMessage = `Não há ônibus programados para o ponto *${selectedStop.name}* nas próximas horas.`;
                         }
-                        replyMessage += '\n\nA Coesa agradece seu contato. Digite "menu" para fazer uma nova consulta.';
+                        replyMessage += '\n\nDigite "menu" para fazer uma nova consulta.';
                         delete userStates[from];
                     } else {
                         replyMessage = `Número inválido. Por favor, envie um número da lista que enviei ou digite "mais" para ver outras opções.`;
@@ -256,8 +254,6 @@ app.listen(PORT, () => {
     initializeLineData();
     console.log(`Servidor do bot a correr na porta ${PORT}`);
 });
-
-
 
 
 
