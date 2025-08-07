@@ -127,9 +127,8 @@ app.post('/whatsapp', async (req, res) => {
                     replyMessage += `- Em *${bus.minutesAway} min* (às ${formattedTime})\n`;
                 });
             }
-            replyMessage += '\n\nA Coesa agradece seu contato. Digite "menu" para fazer uma nova consulta.';
-                        delete userStates[from];
-                    }
+        
+                    
              if (arrivalsRio.length === 0 && arrivalsSG.length === 0) {
                 replyMessage += `_Nenhum ônibus previsto para este ponto nas próximas horas._`;
             }
@@ -257,6 +256,7 @@ app.listen(PORT, () => {
     initializeLineData();
     console.log(`Servidor do bot a correr na porta ${PORT}`);
 });
+
 
 
 
