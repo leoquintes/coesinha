@@ -70,7 +70,6 @@ const allStops = [
     { id: "68338445", name: "Est. Brasilância", lat: -22.912825, lon: -43.177048 },
     { id: "68355721", name: "Augusto Severo", lat: -22.916643, lon: -43.176563 }
 ];
-const companyBusData = { stops: allStops };
 
 // --- LÓGICA DA API CITTATI ---
 
@@ -132,13 +131,11 @@ function calculateDistance(lat1, lon1, lat2, lon2) { const R = 6371; const dLat 
 
 // --- LÓGICA PRINCIPAL DO BOT ---
 
-const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-
 app.post('/whatsapp', async (req, res) => {
     const twiml = new twilio.twiml.MessagingResponse();
     const incomingMsg = req.body.Body.toLowerCase().trim();
     const from = req.body.From;
-    const selectionId = req.body.ListPicker || null;
+
     let state = userStates[from] || { step: 'start' };
 
     if (incomingMsg === 'menu' || incomingMsg === 'início' || incomingMsg === 'inicio') {
@@ -194,88 +191,126 @@ app.post('/whatsapp', async (req, res) => {
         }
         twiml.message(replyMessage);
         delete userStates[from];
-    }
-    // Lida com a seleção da lista de paragens
-    else if (state.step === 'awaiting_stop_choice' && selectionId) {
-        const selectedStop = allStops.find(s => s.id === selectionId);
-        let replyMessage = '';
-        if (selectedStop) {
-            try {
-                const realTimeBuses = await getRealTimeBusLocations();
-                const predictions = realTimeBuses
-                    .filter(bus => bus.destination === state.destination)
-                    .map(bus => {
-                        const distanceToStop = calculateDistance(bus.lat, bus.lon, selectedStop.lat, selectedStop.lon);
-                        const estimatedTimeMinutes = (distanceToStop / 30) * 60;
-                        return { ...bus, minutesAway: Math.round(estimatedTimeMinutes) };
-                    })
-                    .sort((a, b) => a.minutesAway - b.minutesAway);
+    } else {
+        // Lógica de conversa baseada em estado
+        switch (state.step) {
+            case 'start':
+                twiml.message('Olá! Bem-vindo ao assistente da Coesa. Como posso ajudar?\n\n*1.* Consultar por Lista de Paragens\n*2.* Usar a Minha Localização');
+                state.step = 'awaiting_initial_choice';
+                break;
 
-                if (predictions.length > 0) {
-                    replyMessage = `*Previsões em tempo real para ${selectedStop.name} (sentido ${state.destination}):*\n\n`;
-                    predictions.slice(0, 3).forEach(bus => {
-                        replyMessage += `- Autocarro *${bus.prefixo}* chega em aprox. *${bus.minutesAway} min*.\n`;
-                    });
+            case 'awaiting_initial_choice':
+                if (incomingMsg === '1') {
+                    twiml.message('Para qual destino deseja ver as paragens?\n*1.* Rio de Janeiro\n*2.* São Gonçalo');
+                    state.step = 'awaiting_destination_for_list';
+                } else if (incomingMsg === '2') {
+                    twiml.message('Por favor, use a função do WhatsApp para partilhar a sua localização atual.');
+                    state.step = 'awaiting_location';
                 } else {
-                    replyMessage = `Não há autocarros a caminho da paragem *${selectedStop.name}* no momento.`;
+                    twiml.message('Opção inválida. Por favor, responda com *1* ou *2*.');
                 }
-                replyMessage += '\n\nDigite "menu" para fazer uma nova consulta.';
-                delete userStates[from];
-            } catch (error) {
-                replyMessage = "Desculpe, não consegui obter a localização dos autocarros em tempo real. Por favor, tente novamente.";
-            }
-        } else {
-            replyMessage = "Ocorreu um erro. Por favor, digite 'menu' para recomeçar.";
-        }
-        twiml.message(replyMessage);
-    }
-    // Lida com a resposta ao menu inicial
-    else if (state.step === 'awaiting_initial_choice') {
-        if (incomingMsg.includes('lista')) {
-            await client.messages.create({
-                from: req.body.To, to: from,
-                body: 'Para qual destino deseja ver as paragens?',
-                buttons: ['Rio de Janeiro', 'São Gonçalo']
-            });
-            state.step = 'awaiting_destination';
-        } else if (incomingMsg.includes('localização')) {
-            twiml.message('Por favor, use a função do WhatsApp para partilhar a sua localização atual.');
-            state.step = 'awaiting_location';
-        } else {
-            twiml.message("Não entendi. Por favor, toque num dos botões.");
-        }
-    }
-    // Lida com a seleção do destino (resposta ao menu de botões)
-    else if (state.step === 'awaiting_destination') {
-        const destination = incomingMsg === 'rio de janeiro' ? 'Rio de Janeiro' : (incomingMsg === 'são gonçalo' ? 'São Gonçalo' : null);
-        if (destination) {
-            state.destination = destination;
-            const linePath = destination === 'Rio de Janeiro' ? companyBusData.lines.ida.path : companyBusData.lines.volta.path;
-            const stopsForRoute = allStops.filter(s => linePath.includes(s.id));
+                break;
             
-            const listSections = [{
-                title: `Paragens para ${destination}`,
-                rows: stopsForRoute.map(stop => ({ id: stop.id, title: stop.name }))
-            }];
+            case 'awaiting_location':
+                 twiml.message('Ainda estou a aguardar que partilhe a sua localização. Se mudou de ideias, digite "menu" para recomeçar.');
+                 break;
+
+            case 'awaiting_destination_for_list':
+                const destination = incomingMsg === '1' ? 'Rio de Janeiro' : (incomingMsg === '2' ? 'São Gonçalo' : null);
+                if (destination) {
+                    state.destination = destination;
+                    
+                    const stopsForRoute = allStops; // Simplificado para mostrar todas as paragens
+                    
+                    state.paginatedStops = [];
+                    const pageSize = 10;
+                    for (let i = 0; i < stopsForRoute.length; i += pageSize) {
+                        state.paginatedStops.push(stopsForRoute.slice(i, i + pageSize));
+                    }
+                    state.currentPage = 0;
+
+                    let listMessage = `Estas são as primeiras paragens para *${state.destination}*:\n\n`;
+                    state.paginatedStops[0].forEach((stop, index) => {
+                        listMessage += `*${index + 1}.* ${stop.name}\n`;
+                    });
+                    if (state.paginatedStops.length > 1) {
+                        listMessage += `\nResponda com o *número* da paragem ou digite *"mais"* para ver as próximas.`;
+                    } else {
+                        listMessage += `\nResponda com o *número* da paragem.`;
+                    }
+                    twiml.message(listMessage);
+                    state.step = 'awaiting_stop_from_list';
+                } else {
+                    twiml.message('Opção inválida. Por favor, responda com *1* para Rio de Janeiro ou *2* para São Gonçalo.');
+                }
+                break;
+
+            case 'awaiting_stop_from_list':
+                if (incomingMsg === 'mais') {
+                    state.currentPage++;
+                    if (state.paginatedStops && state.currentPage < state.paginatedStops.length) {
+                        const pageStops = state.paginatedStops[state.currentPage];
+                        const startNumber = state.currentPage * 10 + 1;
+                        let pageMessage = `Continuando a lista de paragens para *${state.destination}*:\n\n`;
+                        pageStops.forEach((stop, index) => {
+                            pageMessage += `*${startNumber + index}.* ${stop.name}\n`;
+                        });
+                        if (state.currentPage < state.paginatedStops.length - 1) {
+                            pageMessage += `\nResponda com o *número* da paragem ou digite *"mais"* para ver as próximas.`;
+                        } else {
+                             pageMessage += `\nResponda com o *número* da paragem.`;
+                        }
+                        twiml.message(pageMessage);
+                    } else {
+                        twiml.message('Você chegou ao fim da lista. Por favor, escolha um número ou digite "menu" para recomeçar.');
+                        if(state.currentPage > 0) state.currentPage--;
+                    }
+                } else {
+                    const choice = parseInt(incomingMsg, 10);
+                    const pageSize = 10;
+                    const pageIndex = Math.floor((choice - 1) / pageSize);
+                    const itemIndex = (choice - 1) % pageSize;
+
+                    if (!isNaN(choice) && state.paginatedStops && state.paginatedStops[pageIndex] && state.paginatedStops[pageIndex][itemIndex]) {
+                        const selectedStop = state.paginatedStops[pageIndex][itemIndex];
+                        
+                        try {
+                            const realTimeBuses = await getRealTimeBusLocations();
+                            const predictions = realTimeBuses
+                                .filter(bus => bus.destination === state.destination)
+                                .map(bus => {
+                                    const distanceToStop = calculateDistance(bus.lat, bus.lon, selectedStop.lat, selectedStop.lon);
+                                    const estimatedTimeMinutes = (distanceToStop / 30) * 60;
+                                    return { ...bus, minutesAway: Math.round(estimatedTimeMinutes) };
+                                })
+                                .sort((a, b) => a.minutesAway - b.minutesAway);
+
+                            let resultMessage = '';
+                            if (predictions.length > 0) {
+                                resultMessage = `*Previsões em tempo real para ${selectedStop.name}:*\n\n`;
+                                predictions.slice(0, 3).forEach(bus => {
+                                    resultMessage += `- Autocarro *${bus.prefixo}* chega em aprox. *${bus.minutesAway} min*.\n`;
+                                });
+                            } else {
+                                resultMessage = `Não há autocarros a caminho da paragem *${selectedStop.name}* no momento.`;
+                            }
+                            resultMessage += '\n\nDigite "menu" para fazer uma nova consulta.';
+                            twiml.message(resultMessage);
+                            delete userStates[from];
+                        } catch (error) {
+                            twiml.message("Desculpe, não consegui obter a localização dos autocarros em tempo real. Por favor, tente novamente.");
+                        }
+                    } else {
+                        twiml.message(`Número inválido. Por favor, envie um número da lista que lhe enviei ou digite "mais" para ver outras opções.`);
+                    }
+                }
+                break;
             
-            await client.messages.create({
-                from: req.body.To, to: from,
-                body: `Ótimo! Agora escolha a sua paragem para *${destination}* na lista abaixo.`,
-                listPicker: { buttonText: 'Ver Paragens', sections: listSections }
-            });
-            state.step = 'awaiting_stop_choice';
-        } else {
-            twiml.message("Não entendi. Por favor toque num dos botões.");
+            default:
+                twiml.message('Olá! Tivemos um problema e reiniciámos a nossa conversa. Como posso ajudar?\n\n*1.* Ver lista de paragens\n*2.* Enviar a minha localização');
+                state = { step: 'awaiting_initial_choice' };
+                break;
         }
-    }
-    // Para qualquer outra mensagem, mostra o menu inicial com botões
-    else {
-        await client.messages.create({
-            from: req.body.To, to: from,
-            body: 'Olá! Bem-vindo ao assistente da Coesa. Como posso ajudar?',
-            buttons: ['Consultar por Lista', 'Usar a Minha Localização']
-        });
-        state.step = 'awaiting_initial_choice';
     }
 
     userStates[from] = state;
