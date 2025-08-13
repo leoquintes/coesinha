@@ -70,6 +70,7 @@ const allStops = [
     { id: "68338445", name: "Est. Brasilância", lat: -22.912825, lon: -43.177048 },
     { id: "68355721", name: "Augusto Severo", lat: -22.916643, lon: -43.176563 }
 ];
+const companyBusData = { stops: allStops };
 
 // --- LÓGICA DA API CITTATI ---
 
@@ -134,6 +135,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) { const R = 6371; const dLat 
 const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
 app.post('/whatsapp', async (req, res) => {
+    const twiml = new twilio.twiml.MessagingResponse();
     const incomingMsg = req.body.Body.toLowerCase().trim();
     const from = req.body.From;
     const selectionId = req.body.ListPicker || null;
@@ -145,8 +147,52 @@ app.post('/whatsapp', async (req, res) => {
     
     // Lida com a localização primeiro
     if (req.body.Latitude && req.body.Longitude) {
-        // ... (código para lidar com a localização, que pode ser adicionado aqui)
-        twiml.message("Obrigado por enviar a sua localização! Esta funcionalidade será implementada em breve.");
+        const { Latitude, Longitude } = req.body;
+        
+        let replyMessage = '';
+        try {
+            const realTimeBuses = await getRealTimeBusLocations();
+            let closestStop = null;
+            let minDistance = Infinity;
+
+            allStops.forEach(stop => {
+                const distance = calculateDistance(Latitude, Longitude, stop.lat, stop.lon);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestStop = stop;
+                }
+            });
+
+            if (closestStop && minDistance < 2) {
+                replyMessage = `*Previsões em tempo real para a paragem mais próxima: ${closestStop.name}*\n\n`;
+                
+                const predictions = realTimeBuses.map(bus => {
+                    const distanceToStop = calculateDistance(bus.lat, bus.lon, closestStop.lat, closestStop.lon);
+                    const estimatedTimeMinutes = (distanceToStop / 30) * 60;
+                    return { ...bus, minutesAway: Math.round(estimatedTimeMinutes) };
+                });
+
+                const predictionsRio = predictions.filter(p => p.destination === 'Rio de Janeiro').sort((a, b) => a.minutesAway - b.minutesAway);
+                const predictionsSG = predictions.filter(p => p.destination === 'São Gonçalo').sort((a, b) => a.minutesAway - b.minutesAway);
+
+                if (predictionsRio.length > 0) {
+                    replyMessage += `*Próximo para o Rio de Janeiro:*\n`;
+                    replyMessage += `- Autocarro *${predictionsRio[0].prefixo}* chega em aprox. *${predictionsRio[0].minutesAway} min*.\n`;
+                }
+                if (predictionsSG.length > 0) {
+                    replyMessage += `\n*Próximo para São Gonçalo:*\n`;
+                    replyMessage += `- Autocarro *${predictionsSG[0].prefixo}* chega em aprox. *${predictionsSG[0].minutesAway} min*.\n`;
+                }
+                if (predictionsRio.length === 0 && predictionsSG.length === 0) {
+                    replyMessage += `_Nenhum autocarro da linha 110 parece estar próximo desta paragem no momento._`;
+                }
+            } else {
+                replyMessage = "Não consegui encontrar uma paragem a menos de 2km da sua localização.";
+            }
+        } catch (error) {
+            replyMessage = "Desculpe, não consegui obter a localização dos autocarros em tempo real. Por favor, tente novamente.";
+        }
+        twiml.message(replyMessage);
         delete userStates[from];
     }
     // Lida com a seleção da lista de paragens
@@ -154,30 +200,50 @@ app.post('/whatsapp', async (req, res) => {
         const selectedStop = allStops.find(s => s.id === selectionId);
         let replyMessage = '';
         if (selectedStop) {
-            const realTimeBuses = await getRealTimeBusLocations();
-            const predictions = realTimeBuses
-                .filter(bus => bus.destination === state.destination)
-                .map(bus => {
-                    const distanceToStop = calculateDistance(bus.lat, bus.lon, selectedStop.lat, selectedStop.lon);
-                    const estimatedTimeMinutes = (distanceToStop / 30) * 60;
-                    return { ...bus, minutesAway: Math.round(estimatedTimeMinutes) };
-                })
-                .sort((a, b) => a.minutesAway - b.minutesAway);
+            try {
+                const realTimeBuses = await getRealTimeBusLocations();
+                const predictions = realTimeBuses
+                    .filter(bus => bus.destination === state.destination)
+                    .map(bus => {
+                        const distanceToStop = calculateDistance(bus.lat, bus.lon, selectedStop.lat, selectedStop.lon);
+                        const estimatedTimeMinutes = (distanceToStop / 30) * 60;
+                        return { ...bus, minutesAway: Math.round(estimatedTimeMinutes) };
+                    })
+                    .sort((a, b) => a.minutesAway - b.minutesAway);
 
-            if (predictions.length > 0) {
-                replyMessage = `*Previsões em tempo real para ${selectedStop.name} (sentido ${state.destination}):*\n\n`;
-                predictions.slice(0, 3).forEach(bus => {
-                    replyMessage += `- Autocarro *${bus.prefixo}* chega em aprox. *${bus.minutesAway} min*.\n`;
-                });
-            } else {
-                replyMessage = `Não há autocarros a caminho da paragem *${selectedStop.name}* no momento.`;
+                if (predictions.length > 0) {
+                    replyMessage = `*Previsões em tempo real para ${selectedStop.name} (sentido ${state.destination}):*\n\n`;
+                    predictions.slice(0, 3).forEach(bus => {
+                        replyMessage += `- Autocarro *${bus.prefixo}* chega em aprox. *${bus.minutesAway} min*.\n`;
+                    });
+                } else {
+                    replyMessage = `Não há autocarros a caminho da paragem *${selectedStop.name}* no momento.`;
+                }
+                replyMessage += '\n\nDigite "menu" para fazer uma nova consulta.';
+                delete userStates[from];
+            } catch (error) {
+                replyMessage = "Desculpe, não consegui obter a localização dos autocarros em tempo real. Por favor, tente novamente.";
             }
-            replyMessage += '\n\nDigite "menu" para fazer uma nova consulta.';
-            delete userStates[from];
         } else {
             replyMessage = "Ocorreu um erro. Por favor, digite 'menu' para recomeçar.";
         }
         twiml.message(replyMessage);
+    }
+    // Lida com a resposta ao menu inicial
+    else if (state.step === 'awaiting_initial_choice') {
+        if (incomingMsg.includes('lista')) {
+            await client.messages.create({
+                from: req.body.To, to: from,
+                body: 'Para qual destino deseja ver as paragens?',
+                buttons: ['Rio de Janeiro', 'São Gonçalo']
+            });
+            state.step = 'awaiting_destination';
+        } else if (incomingMsg.includes('localização')) {
+            twiml.message('Por favor, use a função do WhatsApp para partilhar a sua localização atual.');
+            state.step = 'awaiting_location';
+        } else {
+            twiml.message("Não entendi. Por favor, toque num dos botões.");
+        }
     }
     // Lida com a seleção do destino (resposta ao menu de botões)
     else if (state.step === 'awaiting_destination') {
@@ -189,10 +255,7 @@ app.post('/whatsapp', async (req, res) => {
             
             const listSections = [{
                 title: `Paragens para ${destination}`,
-                rows: stopsForRoute.map(stop => ({
-                    id: stop.id,
-                    title: stop.name
-                }))
+                rows: stopsForRoute.map(stop => ({ id: stop.id, title: stop.name }))
             }];
             
             await client.messages.create({
@@ -209,10 +272,10 @@ app.post('/whatsapp', async (req, res) => {
     else {
         await client.messages.create({
             from: req.body.To, to: from,
-            body: 'Olá! Bem-vindo ao assistente da Coesa. Para qual destino deseja consultar os horários?',
-            buttons: ['Rio de Janeiro', 'São Gonçalo']
+            body: 'Olá! Bem-vindo ao assistente da Coesa. Como posso ajudar?',
+            buttons: ['Consultar por Lista', 'Usar a Minha Localização']
         });
-        state.step = 'awaiting_destination';
+        state.step = 'awaiting_initial_choice';
     }
 
     userStates[from] = state;
@@ -225,6 +288,5 @@ app.post('/whatsapp', async (req, res) => {
 // --- INICIA O SERVIDOR ---
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    initializeLineData();
     console.log(`Servidor do bot a correr na porta ${PORT}`);
 });
