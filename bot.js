@@ -83,8 +83,8 @@ async function authenticateCittati() {
             usuario: process.env.CITTATI_USER,
             senha: process.env.CITTATI_PASSWORD
         });
-        cittatiToken = response.data; // O token é a resposta direta
-        cittatiEmpresa = "pedro@coesa.com"; // Conforme a sua documentação
+        cittatiToken = response.data;
+        cittatiEmpresa = "pedro@coesa.com";
         console.log("Autenticação na CITTATI bem-sucedida.");
         return true;
     } catch (error) {
@@ -107,7 +107,6 @@ async function getRealTimeBusLocations() {
         const today = new Date();
         const dateString = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
         
-        // CORREÇÃO: O token é enviado como um parâmetro na URL, não como um header.
         const response = await axios.get('http://servicos.cittati.com.br/WSIntegracaoCittati/Operacional/ConsultarViagens', {
             params: {
                 data: dateString,
@@ -127,7 +126,7 @@ async function getRealTimeBusLocations() {
     } catch (error) {
         console.error("Erro ao consultar viagens na CITTATI:", error.response ? error.response.data : error.message);
         if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-            cittatiToken = null; // Limpa o token para forçar nova autenticação
+            cittatiToken = null;
         }
         return [];
     }
@@ -219,10 +218,32 @@ app.post('/whatsapp', async (req, res) => {
                  break;
 
             case 'awaiting_destination_for_list':
-                 // Lógica para este passo foi removida para simplificar, o fluxo agora é linear.
-                 // Se o utilizador chegar aqui por engano, reinicia.
-                 twiml.message('Olá! Tivemos um problema. Vamos recomeçar. Como posso ajudar?\n\n*1.* Consultar por Lista de Paragens\n*2.* Usar a Minha Localização');
-                 state.step = 'awaiting_initial_choice';
+                 const destination = incomingMsg === '1' ? 'Rio de Janeiro' : (incomingMsg === '2' ? 'São Gonçalo' : null);
+                 if (destination) {
+                     state.destination = destination;
+                     const stopsForRoute = allStops; // Simplificado para mostrar todas as paragens
+                     
+                     state.paginatedStops = [];
+                     const pageSize = 10;
+                     for (let i = 0; i < stopsForRoute.length; i += pageSize) {
+                         state.paginatedStops.push(stopsForRoute.slice(i, i + pageSize));
+                     }
+                     state.currentPage = 0;
+ 
+                     let listMessage = `Estas são as primeiras paragens para *${state.destination}*:\n\n`;
+                     state.paginatedStops[0].forEach((stop, index) => {
+                         listMessage += `*${index + 1}.* ${stop.name}\n`;
+                     });
+                     if (state.paginatedStops.length > 1) {
+                         listMessage += `\nResponda com o *número* da paragem ou digite *"mais"* para ver as próximas.`;
+                     } else {
+                         listMessage += `\nResponda com o *número* da paragem.`;
+                     }
+                     twiml.message(listMessage);
+                     state.step = 'awaiting_stop_from_list';
+                 } else {
+                     twiml.message('Opção inválida. Por favor, responda com *1* para Rio de Janeiro ou *2* para São Gonçalo.');
+                 }
                  break;
 
             default:
