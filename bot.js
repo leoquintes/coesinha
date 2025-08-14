@@ -83,7 +83,15 @@ async function authenticateCittati() {
             usuario: process.env.CITTATI_USER,
             senha: process.env.CITTATI_PASSWORD
         });
-        cittatiToken = response.data;
+        
+        if (typeof response.data === 'string' && response.data.length > 0) {
+            cittatiToken = response.data;
+        } else if (response.data && typeof response.data.token === 'string') {
+            cittatiToken = response.data.token;
+        } else {
+            throw new Error("Formato de token inesperado.");
+        }
+
         cittatiEmpresa = "pedro@coesa.com";
         console.log("Autenticação na CITTATI bem-sucedida.");
         return true;
@@ -116,12 +124,17 @@ async function getRealTimeBusLocations() {
             }
         });
         
-        return response.data.map(bus => ({
-            prefixo: bus.prefixoVeiculo,
-            lat: bus.latitude,
-            lon: bus.longitude,
-            destination: bus.sentido === 'I' ? 'Rio de Janeiro' : 'São Gonçalo'
-        }));
+        if (Array.isArray(response.data)) {
+            return response.data.map(bus => ({
+                prefixo: bus.prefixoVeiculo,
+                lat: bus.latitude,
+                lon: bus.longitude,
+                destination: bus.sentido === 'I' ? 'Rio de Janeiro' : 'São Gonçalo'
+            }));
+        } else {
+            console.error("A resposta da API CITTATI não foi um array:", response.data);
+            return [];
+        }
 
     } catch (error) {
         console.error("Erro ao consultar viagens na CITTATI:", error.response ? error.response.data : error.message);
