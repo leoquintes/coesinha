@@ -245,6 +245,77 @@ app.post('/whatsapp', async (req, res) => {
                      twiml.message('Opção inválida. Por favor, responda com *1* para Rio de Janeiro ou *2* para São Gonçalo.');
                  }
                  break;
+            
+            case 'awaiting_stop_from_list':
+                if (incomingMsg === 'mais') {
+                    state.currentPage++;
+                    if (state.paginatedStops && state.currentPage < state.paginatedStops.length) {
+                        const pageStops = state.paginatedStops[state.currentPage];
+                        const startNumber = state.currentPage * 10 + 1;
+                        let pageMessage = `Continuando a lista de paragens para *${state.destination}*:\n\n`;
+                        pageStops.forEach((stop, index) => {
+                            pageMessage += `*${startNumber + index}.* ${stop.name}\n`;
+                        });
+                        if (state.currentPage < state.paginatedStops.length - 1) {
+                            pageMessage += `\nResponda com o *número* da paragem ou digite *"mais"* para ver as próximas.`;
+                        } else {
+                             pageMessage += `\nResponda com o *número* da paragem.`;
+                        }
+                        twiml.message(pageMessage);
+                    } else {
+                        twiml.message('Você chegou ao fim da lista. Por favor, escolha um número ou digite "menu" para recomeçar.');
+                        if(state.currentPage > 0) state.currentPage--;
+                    }
+                } else {
+                    const choice = parseInt(incomingMsg, 10);
+                    const pageSize = 10;
+                    const pageIndex = Math.floor((choice - 1) / pageSize);
+                    const itemIndex = (choice - 1) % pageSize;
+
+                    if (!isNaN(choice) && state.paginatedStops && state.paginatedStops[pageIndex] && state.paginatedStops[pageIndex][itemIndex]) {
+                        const selectedStop = state.paginatedStops[pageIndex][itemIndex];
+                        let resultMessage = '';
+                        
+                        try {
+                            const realTimeBuses = await getRealTimeBusLocations();
+                            const predictions = realTimeBuses
+                                .filter(bus => bus.destination === state.destination)
+                                .map(bus => {
+                                    const distanceToStop = calculateDistance(bus.lat, bus.lon, selectedStop.lat, selectedStop.lon);
+                                    const estimatedTimeMinutes = (distanceToStop / 30) * 60;
+                                    return { ...bus, minutesAway: Math.round(estimatedTimeMinutes) };
+                                })
+                                .sort((a, b) => a.minutesAway - b.minutesAway);
+
+                            if (predictions.length > 0) {
+                                resultMessage = `*Previsões em tempo real para ${selectedStop.name}:*\n\n`;
+                                predictions.slice(0, 3).forEach(bus => {
+                                    resultMessage += `- Autocarro *${bus.prefixo}* chega em aprox. *${bus.minutesAway} min*.\n`;
+                                });
+                            } else {
+                                // Fallback para horários programados
+                                const scheduledArrivals = calculateScheduledArrivals(selectedStop, state.destination);
+                                if (scheduledArrivals.length > 0) {
+                                    resultMessage = `Não há autocarros em tempo real a caminho. *Próximos horários programados para ${selectedStop.name}:*\n\n`;
+                                    scheduledArrivals.forEach(bus => {
+                                        const formattedTime = bus.arrivalTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                                        resultMessage += `- Chega em aprox. *${bus.minutesAway} min* (às ${formattedTime})\n`;
+                                    });
+                                } else {
+                                     resultMessage = `Não há autocarros a caminho da paragem *${selectedStop.name}* no momento, nem mais horários programados para hoje.`;
+                                }
+                            }
+                            resultMessage += '\n\nDigite "menu" para fazer uma nova consulta.';
+                            twiml.message(resultMessage);
+                            delete userStates[from];
+                        } catch (error) {
+                            twiml.message("Desculpe, não consegui obter a localização dos autocarros em tempo real. Por favor, tente novamente.");
+                        }
+                    } else {
+                        twiml.message(`Número inválido. Por favor, envie um número da lista que lhe enviei ou digite "mais" para ver outras opções.`);
+                    }
+                }
+                break;
 
             default:
                 twiml.message('Olá! Tivemos um problema e reiniciámos a nossa conversa. Como posso ajudar?\n\n*1.* Ver lista de paragens\n*2.* Enviar a minha localização');
