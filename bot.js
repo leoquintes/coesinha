@@ -84,15 +84,27 @@ async function authenticateCittati() {
             senha: process.env.CITTATI_PASSWORD
         });
         
+        // CORREÇÃO: Lógica mais robusta para extrair o token e a empresa
         if (typeof response.data === 'string' && response.data.length > 0) {
             cittatiToken = response.data;
+            cittatiEmpresa = "pedro@coesa.com"; // Usa o valor padrão se a empresa não vier na resposta
         } else if (response.data && typeof response.data.token === 'string') {
             cittatiToken = response.data.token;
+            cittatiEmpresa = response.data.empresa || "pedro@coesa.com";
         } else {
-            throw new Error("Formato de token inesperado.");
+            // Se a resposta for um objeto, tentamos encontrar o token e a empresa, independentemente de maiúsculas/minúsculas
+            const responseData = response.data || {};
+            const tokenKey = Object.keys(responseData).find(k => k.toLowerCase() === 'token');
+            const empresaKey = Object.keys(responseData).find(k => k.toLowerCase() === 'empresa');
+
+            if (tokenKey) {
+                cittatiToken = responseData[tokenKey];
+                cittatiEmpresa = empresaKey ? responseData[empresaKey] : "pedro@coesa.com";
+            } else {
+                 throw new Error("Formato de token inesperado.");
+            }
         }
 
-        cittatiEmpresa = "pedro@coesa.com";
         console.log("Autenticação na CITTATI bem-sucedida.");
         return true;
     } catch (error) {
